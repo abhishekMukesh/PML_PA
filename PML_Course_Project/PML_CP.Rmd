@@ -1,0 +1,110 @@
+
+#HAC-Exercise Data set Activity recognition Analysis
+
+---
+title: "Human Activity recognition dataset analysis"
+author: "Abhishek Singh"
+date: "Saturday, June 18, 2016"
+---
+
+```{r results="hide",message=FALSE, warning=FALSE}
+library(caret)
+library(randomForest)
+library(gbm)
+library(knitr)
+```
+  
+##Acquiring the Data  
+  
+The credit for this data is to : Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6. 
+
+As the data sets are small, I load them directly into memory from the URLs
+```{r}
+trainAdd<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testAdd<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+training1 <- read.csv(url(trainAdd), na.strings=c(" ","NA","#DIV/0!","","-"))
+Validation <- read.csv(url(testAdd), na.strings=c(" ","NA","#DIV/0!","","-"))
+```
+  
+##Creating Required DataSets  
+  
+Sub-Dividing the data set to create a testing set for estimating the Out of Sample Error.
+```{r}
+Sub1<-createDataPartition(training1$classe,p=0.6,list=FALSE)
+training<-training1[Sub1,]
+test<-training1[-Sub1,]
+rm(Sub1)
+```
+   
+##Preprocessing  
+  
+Looking at the summary for a sense of the data distribution and missing values.
+```{r}
+summary(training)
+```
+  
+We observe that there are a lot of variables with a large % of missing values. To resolve the situation we first see the dimensions for complete cases, which turns out to be 0(no complete rows) so we go on to check the null %ages of each column, on checking these values we find out that the min value is 97.98% so its reasonable to remove all columns containing any null values from our analysis.  
+  
+```{r}
+dim(training[complete.cases(training),])
+NullIndex<-lapply(training,function(x) sum(ifelse(is.na(x),1,0))/nrow(training))
+NullIndex<-(NullIndex[NullIndex>0])
+NullIndex[which.min(NullIndex[NullIndex>0])]
+
+col_to_omit<-names(NullIndex)
+training_cl<-training[,!colnames(training)%in%col_to_omit]
+```
+  
+On referring to the problem statement and the description of data at the data source, we see that the first 7 variables(row no, subject name, timestamps, window indexes) are theoretically irrelevant to our problem, so we proceed to remove those from our model.
+  
+```{r}
+training_cl<-training_cl[,8:ncol(training_cl)]
+```
+  
+##Model training  
+  
+We set a seed for reproducability of random results and then proceed to tune and then train our models, We use Random forest and gradient boosting as descion trees and linear regression usually perform poorly for such high dimensional problems.
+  
+```{r}
+set.seed(1366)
+t<-tuneRF(training_cl[,colnames(training_cl)!="classe"],training_cl$classe,ntreeTry = 5000,trace=FALSE)
+best.t<-t[t[, 2] == min(t[, 2]), 1]
+RFmod<-randomForest(classe~.,data=training_cl,ntree=5000,mtry=best.t,
+                    replace=TRUE,keep.forest=TRUE,importance=TRUE)
+```
+  
+The Variable importance plot helps us in feature selection if we want to decrease the complexity of the model.
+```{r}
+varImpPlot(RFmod)
+```
+  
+We also train a gbm model for comparision purposes
+```{r}
+boostFit <- train(classe ~ ., method = "gbm", data = training_cl, verbose = F, 
+                  trControl = trainControl(method = "cv", number = 10))
+```
+  
+A few parameters have a different class in the Validation and test sets so we coerce those foctors to avoid error in prediction. 
+```{r}
+Validation$magnet_dumbbell_z<-as.numeric(Validation$magnet_dumbbell_z)
+Validation$magnet_forearm_y<-as.numeric(Validation$magnet_forearm_y)
+Validation$magnet_forearm_z<-as.numeric(Validation$magnet_forearm_z)
+```
+  
+##Validation and Out of Sample Error  
+  
+We predict the values for the test set from both models to judge accuracy, In this the RF gives a higher out of sample(OOS) accuracy (99.3% for RF vs 96.0% for gbm).Also worth noting that the upper limit of the 95% confidence interval  of OOS accuracy for gbm is lower than the lower limit of that in case of RF. Also the accuracy of RF is pretty high so combining predictors will increase complexity of model without giving any significant increase in accuracy, also it may lead to overfitting. So we decide on the RF as our final model.
+  
+```{r}
+test$Pred_classe<-predict(RFmod,test)
+test$Pred_classe_gbm<-predict(boostFit,test)
+confusionMatrix(test$Pred_classe,test$classe)
+confusionMatrix(test$Pred_classe_gbm,test$classe)
+```
+  
+Predicting on validation set for the quiz
+  
+```{r}
+predict(RFmod,Validation)
+```
