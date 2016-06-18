@@ -498,10 +498,10 @@ Validation$magnet_forearm_z<-as.numeric(Validation$magnet_forearm_z)
   
 ##Validation and Out of Sample Error  
   
-We predict the values for the test set from both models to judge accuracy, In this the RF gives a higher out of sample(OOS) accuracy (99.3% for RF vs 96.0% for gbm).Also worth noting that the upper limit of the 95% confidence interval  of OOS accuracy for gbm is lower than the lower limit of that in case of RF. Also the accuracy of RF is pretty high so combining predictors will increase complexity of model without giving any significant increase in accuracy, also it may lead to overfitting. So we decide on the RF as our final model.
+We predict the values for the test set from both models to judge accuracy, In this the RF gives a higher out of sample(OOS) accuracy (99.3% for RF vs 96.0% for gbm).Also worth noting that the upper limit of the 95% confidence interval  of OOS accuracy for gbm is lower than the lower limit of that in case of RF. Also the accuracy of RF is pretty high so combining predictors will increase complexity of model without giving any significant increase in accuracy, also it may lead to overfitting. So we decide on the RF as our final model. As for the Cross validation RF does not need any external cross validations as OOB error in RF is a valid estimator of the cross validation error as can be read here https://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr
 ```r
 RFmod
-```
+
 Call:
  randomForest(formula = classe ~ ., data = training_cl, ntree = 5000,      mtry = best.t, replace = TRUE, keep.forest = TRUE, importance = TRUE) 
                Type of random forest: classification
@@ -516,7 +516,7 @@ B   12 2264    3    0    0 0.006581834
 C    0   17 2032    5    0 0.010710808
 D    0    0   17 1910    3 0.010362694
 E    0    0    4    6 2155 0.004618938
-
+```
 ```r
 test$Pred_classe<-predict(RFmod,test)
 test$Pred_classe_gbm<-predict(boostFit,test)
