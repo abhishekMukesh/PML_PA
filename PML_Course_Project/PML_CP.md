@@ -1,13 +1,6 @@
 
 #HAC-Exercise Data set Activity recognition Analysis
 
----
-title: "Human Activity recognition dataset analysis"
-author: "Abhishek Singh"
-date: "Saturday, June 18, 2016"
----
-
-
 ```r
 library(caret)
 library(randomForest)
